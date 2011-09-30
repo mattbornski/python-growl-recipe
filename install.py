@@ -22,26 +22,7 @@ CONFIG['application_icon'] = os.path.join(CONFIG['run_folder'], 'heart_tattoo.pn
 CONFIG['plist_filename'] = os.path.join(CONFIG['launchd_folder'], '.'.join([CONFIG['namespace'], CONFIG['application_name'], 'plist']))
 CONFIG['bash_filename'] = CONFIG['application_name']
 
-def installed():
-    # Check that the application folder exists and that the launchd configuration is valid.
-    return False
-
-def uninstall():
-    # Remove config from launchd and remove the application folder.
-    try:
-        subprocess.call(shlex.split('launchctl unload ' + CONFIG['plist_filename']))
-    except OSError:
-        pass
-    try:
-        os.remove(CONFIG['plist_filename'])
-    except OSError:
-        pass
-    try:
-        shutil.rmtree(CONFIG['application_folder'])
-    except OSError:
-        pass
-
-def install(packages=[]):
+def bootstrap():
     # Bootstrap an environment sufficient to install our application.
     try:
         import setuptools
@@ -52,6 +33,29 @@ def install(packages=[]):
     except ImportError:
         subprocess.check_call(shlex.split('pip install git+http://github.com/mattbornski/shmac.git#egg=shmac --user'))
         os.execv(os.path.abspath(__file__), sys.argv)
+
+def installed():
+    # Check that the application folder exists and that the launchd configuration is valid.
+    return (subprocess.call(shlex.split('launchctl list {namespace}.{application_name}'.format(**CONFIG))) == 0)
+
+def uninstall():
+    bootstrap()
+    import shmac
+    
+    # Remove config from launchd and remove the application folder.
+    try:
+        subprocess.call(shlex.split('launchctl unload {plist_filename}'.format(**CONFIG)))
+    except OSError:
+        pass
+    shmac.sudo('rm {plist_filename}'.format(**CONFIG))
+    try:
+        shutil.rmtree(CONFIG['application_folder'])
+    except OSError:
+        pass
+
+def install(packages=[]):
+    bootstrap()
+    import shmac
     
     # Create the environment necessary to run our application
     cwd = os.getcwd()
@@ -104,10 +108,16 @@ echo "import {application_name} ; {application_name}.run()" | /usr/bin/env pytho
 
 def run():
     # Ask launchd to start the program.
-    subprocess.check_call(shlex.split('launchctl load ' + CONFIG['plist_filename']))
-    subprocess.check_call(shlex.split('launchctl start ' + '.'.join([CONFIG['namespace'], CONFIG['application_name']])))
+    subprocess.check_call(shlex.split('launchctl load {plist_filename}'.format(**CONFIG)))
+    subprocess.check_call(shlex.split('launchctl start {namespace}.{application_name}'.format(**CONFIG)))
 
 if __name__ == '__main__':
-    if not installed():
-        install(packages=[])
-    run()
+    commands = (sys.argv[1:] if len(sys.argv) > 1 else ['install', 'run'])
+    for command in commands:
+        if command == 'uninstall':
+            uninstall()
+        elif command == 'install':
+            if not installed():
+                install(packages=[])
+        elif command == 'run':
+            run()
