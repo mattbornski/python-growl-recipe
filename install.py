@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+# Only import default Python packages here.  You can't depend on any other packages being present at this point in the script execution.
 import os
 import os.path
 import shlex
@@ -22,16 +23,29 @@ CONFIG['application_icon'] = os.path.join(CONFIG['run_folder'], 'heart_tattoo.pn
 CONFIG['plist_filename'] = os.path.join(CONFIG['launchd_folder'], '.'.join([CONFIG['namespace'], CONFIG['application_name'], 'plist']))
 CONFIG['bash_filename'] = CONFIG['application_name']
 
-def bootstrap():
+def bootstrap(packages={}):
     # Bootstrap an environment sufficient to install our application.
+    
+    # The default package manager which comes with most Python installations, easy_install, is not capable of many
+    # things I regularly depend on, like one-line installs from source repos.  Get pip instead.
     try:
         import setuptools
     except ImportError:
         subprocess.check_call(shlex.split('easy_install setuptools --user'))
-    try:
-        import shmac
-    except ImportError:
-        subprocess.check_call(shlex.split('pip install git+http://github.com/mattbornski/shmac.git#egg=shmac --user'))
+
+    # Install packages you requested.  We probably don't have sudo privileges so we'll do this into user-writable
+    # locations.  I do not advise installing packages your program will depend on _at run time_ into user locations,
+    # since their continued existence is not at all guaranteeed.  Instead, use this to get you to the point where
+    # you can install your program and its packages into a virtualenv in a permanent location, which is much more
+    # likely to exist in a predictable state next time your program tries to run.
+    package_refresh_required = False
+    for (package_name, package_location) in packages.iteritems():
+        try:
+            __import__(package_name)
+        except ImportError:
+            subprocess.check_call(shlex.split('pip install {package_location} --user'.format(package_location=package_location)))
+            package_refresh_required = True
+    if package_refresh_required:
         os.execv(os.path.abspath(__file__), sys.argv)
 
 def installed():
@@ -39,7 +53,7 @@ def installed():
     return (subprocess.call(shlex.split('launchctl list {namespace}.{application_name}'.format(**CONFIG))) == 0)
 
 def uninstall():
-    bootstrap()
+    bootstrap({'shmac':'git+http://github.com/mattbornski/shmac.git#egg=shmac'})
     import shmac
     
     # Remove config from launchd and remove the application folder.
@@ -53,8 +67,8 @@ def uninstall():
     except OSError:
         pass
 
-def install(packages=[]):
-    bootstrap()
+def install(packages={}):
+    bootstrap({'shmac':'git+http://github.com/mattbornski/shmac.git#egg=shmac'})
     import shmac
     
     # Create the environment necessary to run our application
@@ -68,7 +82,7 @@ def install(packages=[]):
             except ImportError:
                 subprocess.check_call(shlex.split('pip install virtualenv --user'))
             subprocess.check_call(shlex.split('virtualenv --no-site-packages env'))
-            subprocess.check_call(shlex.split('pip install ' + ' '.join(packages) + ' -E env'))
+            subprocess.check_call(shlex.split('pip install ' + ' '.join(packages.values()) + ' -E env'))
         with open(CONFIG['bash_filename'], 'w') as bash:
             bash.write('''#!/bin/bash
 {virtualenv}
@@ -118,6 +132,6 @@ if __name__ == '__main__':
             uninstall()
         elif command == 'install':
             if not installed():
-                install(packages=[])
+                install(packages={})
         elif command == 'run':
             run()
