@@ -27,7 +27,10 @@ def bootstrap(packages={}):
         except (OSError, subprocess.CalledProcessError):
             pythonpath = os.path.expanduser('~/lib/python' + '.'.join([str(v) for v in sys.version_info[:2]]) + '/site-packages')
             sys.path.append(pythonpath)
-            os.makedirs(pythonpath)
+            try:
+                os.makedirs(pythonpath)
+            except OSError:
+                pass
             try:
                 subprocess.check_call(shlex.split('easy_install --user --script-dir . pip'))
             except subprocess.CalledProcessError:
