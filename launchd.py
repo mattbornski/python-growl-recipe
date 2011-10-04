@@ -43,11 +43,21 @@ def bootstrap(packages={}):
     # you can install your program and its packages into a virtualenv in a permanent location, which is much more
     # likely to exist in a predictable state next time your program tries to run.
     package_refresh_required = False
+    pip_options = '--user '
+    using_fallback = False
     for (package_name, package_location) in packages.iteritems():
         try:
             __import__(package_name)
         except ImportError:
-            subprocess.check_call(shlex.split(pip_location + ' install --user ' + package_location))
+            try:
+                subprocess.check_call(shlex.split(pip_location + ' install ' + pip_options + package_location))
+            except CalledProcessError:
+                if not using_fallback:
+                    pip_options = '--install-option="--prefix ~" '
+                    using_fallback = True
+                    subprocess.check_call(shlex.split(pip_location + ' install ' + pip_options + package_location))
+                else:
+                    raise
             package_refresh_required = True
     if package_refresh_required:
         reload()
