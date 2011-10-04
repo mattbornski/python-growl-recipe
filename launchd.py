@@ -29,6 +29,7 @@ def bootstrap(packages={}):
                 subprocess.check_call(shlex.split('easy_install --user --script-dir . pip'))
             except subprocess.CalledProcessError:
                 # Some versions of Python's default easy_install do not understand --user (I'm looking at you, Python 2.5)
+                os.makedirs(os.path.expanduser('~/lib/python' + '.'.join(sys.version_info[:2]) + '/site-packages'))
                 subprocess.check_call(shlex.split('easy_install --prefix ~ --script-dir . pip'))
             pip_location = './pip'
 
@@ -42,7 +43,7 @@ def bootstrap(packages={}):
         try:
             __import__(package_name)
         except ImportError:
-            subprocess.check_call(shlex.split(pip_location + ' install --user' + package_location))
+            subprocess.check_call(shlex.split(pip_location + ' install --user ' + package_location))
             package_refresh_required = True
     if package_refresh_required:
         reload()
