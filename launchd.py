@@ -26,16 +26,15 @@ def bootstrap(packages={}):
             pip_location = 'pip'
         except (OSError, subprocess.CalledProcessError):
             pythonpath = os.path.expanduser('~/lib/python' + '.'.join([str(v) for v in sys.version_info[:2]]) + '/site-packages')
-            sys.path.append(pythonpath)
             try:
                 os.makedirs(pythonpath)
             except OSError:
                 pass
             try:
-                subprocess.check_call(shlex.split('easy_install --user --script-dir . pip'))
+                subprocess.check_call(shlex.split('easy_install --user --script-dir . pip'), env={'PYTHONPATH':pythonpath})
             except subprocess.CalledProcessError:
                 # Some versions of Python's default easy_install do not understand --user (I'm looking at you, Python 2.5)
-                subprocess.check_call(shlex.split('easy_install --prefix ~ --script-dir . pip'))
+                subprocess.check_call(shlex.split('easy_install --prefix ~ --script-dir . pip'), env={'PYTHONPATH':pythonpath})
             pip_location = './pip'
 
     # Install packages you requested.  We probably don't have sudo privileges so we'll do this into user-writable
