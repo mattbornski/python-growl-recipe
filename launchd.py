@@ -25,7 +25,11 @@ def bootstrap(packages={}):
             subprocess.check_call(shlex.split('pip --version'))
             pip_location = 'pip'
         except (OSError, subprocess.CalledProcessError):
-            subprocess.check_call(shlex.split('easy_install --user --script-dir . pip'))
+            try:
+                subprocess.check_call(shlex.split('easy_install --user --script-dir . pip'))
+            except subprocess.CalledProcessError:
+                # Some versions of Python's default easy_install do not understand --user (I'm looking at you, Python 2.5)
+                subprocess.check_call(shlex.split('easy_install --prefix ~ --script-dir . pip'))
             pip_location = './pip'
 
     # Install packages you requested.  We probably don't have sudo privileges so we'll do this into user-writable

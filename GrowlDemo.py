@@ -21,7 +21,7 @@ def run():
     icon = open(SETTINGS['icon'], 'rb').read()
     notifier = Growl.GrowlNotifier(applicationName=SETTINGS['program'], notifications=['alive'], applicationIcon=icon)
     notifier.register()
-    notifier.notify('alive', SETTINGS['program'], '<-- Now that\'s going to be a big growl')
+    notifier.notify('alive', SETTINGS['program'], 'Bear goggles on')
 
 import launchd
 launchd.handle(**SETTINGS)
