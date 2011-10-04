@@ -32,14 +32,14 @@ def bootstrap(packages={}):
         try:
             __import__(package_name)
         except ImportError:
-            subprocess.check_call(shlex.split('pip install {package_location} --user'.format(package_location=package_location)))
+            subprocess.check_call(shlex.split('pip install ' + settings['package_location'] + ' --user'))
             package_refresh_required = True
     if package_refresh_required:
         os.execv(os.path.abspath(sys.argv[0]), sys.argv)
 
 def installed(settings={}):
     # Check that the application folder exists and that the launchd settingsuration is valid.
-    return (subprocess.call(shlex.split('launchctl list {namespace}.{program}'.format(**settings))) == 0)
+    return (subprocess.call(shlex.split('launchctl list ' + settings['namespace'] + '.' + settings['program'])) == 0)
 
 def uninstall(settings={}):
     bootstrap({'shmac':'git+http://github.com/mattbornski/shmac.git#egg=shmac'})
@@ -47,10 +47,10 @@ def uninstall(settings={}):
     
     # Remove settings from launchd and remove the application folder.
     try:
-        subprocess.call(shlex.split('launchctl unload {plist_filename}'.format(**settings)))
+        subprocess.call(shlex.split('launchctl unload ' + settings['plist_filename']))
     except OSError:
         pass
-    shmac.sudo('rm {plist_filename}'.format(**settings))#, icon=settings['icon'], name=' '.join([settings['vendor'], settings['program']]))
+    shmac.sudo('rm ' + settings['plist_filename'])#, icon=settings['icon'], name=' '.join([settings['vendor'], settings['program']]))
     try:
         shutil.rmtree(settings['application_folder'])
     except OSError:
@@ -76,10 +76,7 @@ def install(packages={}, settings={}):
         # Make a bash script for launchd to invoke.
         bash_filename = settings['program'] + '.sh'
         with open(bash_filename, 'w') as bash:
-            bash.write('''#!/bin/bash
-{virtualenv}
-echo "import {program} ; {program}.run()" | /usr/bin/env python -
-'''.format(virtualenv='source env/bin/activate\n' if len(packages) > 0 else '', **settings))
+            bash.write('#!/bin/bash\n' + ('source env/bin/activate\n' if len(packages) > 0 else '') + 'echo "import ' + settings['program'] + ' ; ' + settings['program'] + '.run()" | /usr/bin/env python -\n')
         os.chmod(bash_filename, 0755)
         
         # Create the launchd file for our application
@@ -90,43 +87,43 @@ echo "import {program} ; {program}.run()" | /usr/bin/env python -
 <plist version="1.0">
   <dict>
     <key>Label</key>
-    <string>{namespace}.{program}</string>
+    <string>''' + settings['namespace'] + '''.''' + settings['program'] + '''</string>
     <key>Program</key>
-    <string>{application_folder}/{bash_filename}</string>
+    <string>''' + settings['application_folder'] + '''/''' + bash_filename + '''</string>
     <key>WorkingDirectory</key>
-    <string>{application_folder}</string>
+    <string>''' + settings['application_folder'] + '''</string>
     <key>ProgramArguments</key>
     <array>
-      <string>{bash_filename}</string>
+      <string>''' + bash_filename + '''</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>{application_folder}/{program}.log</string>
+    <string>''' + settings['application_folder'] + '''/''' + settings['program'] + '''.log</string>
     <key>StandardErrorPath</key>
-    <string>{application_folder}/{program}.log</string>
+    <string>''' + settings['application_folder'] + '''/''' + settings['program'] + '''.log</string>
   </dict>
-</plist>'''.format(bash_filename=bash_filename, **settings))
-        shmac.sudo('cp {temp_plist_filename} {plist_filename}'.format(temp_plist_filename=temp_plist_filename, **settings))#, icon=settings['icon'], name=' '.join([settings['vendor'], settings['program']]))
+</plist>''')
+        shmac.sudo('cp ' + temp_plist_filename + ' ' + settings['plist_filename'])#, icon=settings['icon'], name=' '.join([settings['vendor'], settings['program']]))
         os.remove(temp_plist_filename)
     finally:
         os.chdir(cwd)
 
 def run(settings):
     # Ask launchd to start the program.
-    subprocess.check_call(shlex.split('launchctl load {plist_filename}'.format(**settings)))
-    subprocess.check_call(shlex.split('launchctl start {namespace}.{program}'.format(**settings)))
+    subprocess.check_call(shlex.split('launchctl load ' + settings['plist_filename']))
+    subprocess.check_call(shlex.split('launchctl start ' + settings['namespace'] + '.' + settings['program']))
 
 def restart(settings):
-    subprocess.check_call(shlex.split('launchctl stop {namespace}.{program}'.format(**settings)))
-    subprocess.check_call(shlex.split('launchctl start {namespace}.{program}'.format(**settings)))
+    subprocess.check_call(shlex.split('launchctl stop '+ settings['namespace'] + '.' + settings['program']))
+    subprocess.check_call(shlex.split('launchctl start ' + settings['namespace'] + '.' + settings['program']))
 
 def handle(**settings):
     assert('namespace' in settings)
     assert('vendor' in settings)
     assert('program' in settings)
     settings['run_folder'] = os.path.abspath(os.path.dirname(__file__))
-    settings['application_folder'] = os.path.abspath(os.path.expanduser('~/Library/Application Support/{vendor}'.format(**settings)))
+    settings['application_folder'] = os.path.abspath(os.path.expanduser('~/Library/Application Support/' + settings['vendor']))
     settings['launchd_folder'] = os.path.abspath('/System/Library/LaunchAgents')
     settings['plist_filename'] = os.path.join(settings['launchd_folder'], '.'.join([settings['namespace'], settings['program'], 'plist']))
 
