@@ -23,7 +23,7 @@ def bootstrap(packages={}):
         try:
             import pip
         except ImportError:
-            subprocess.check_call(shlex.split('easy_install pip --user --script-dir .'))
+            subprocess.check_call(shlex.split('easy_install  --user --script-dir . pip'))
 
     # Install packages you requested.  We probably don't have sudo privileges so we'll do this into user-writable
     # locations.  I do not advise installing packages your program will depend on _at run time_ into user locations,
@@ -35,7 +35,7 @@ def bootstrap(packages={}):
         try:
             __import__(package_name)
         except ImportError:
-            subprocess.check_call(shlex.split('./pip install ' + package_location + ' --user'))
+            subprocess.check_call(shlex.split('./pip install --user' + package_location))
             package_refresh_required = True
     if package_refresh_required:
         reload()
