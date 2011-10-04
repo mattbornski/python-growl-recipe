@@ -32,7 +32,7 @@ def bootstrap(packages={}):
         try:
             __import__(package_name)
         except ImportError:
-            subprocess.check_call(shlex.split('pip install ' + settings['package_location'] + ' --user'))
+            subprocess.check_call(shlex.split('pip install ' + package_location + ' --user'))
             package_refresh_required = True
     if package_refresh_required:
         os.execv(os.path.abspath(sys.argv[0]), sys.argv)
