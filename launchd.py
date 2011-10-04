@@ -21,9 +21,9 @@ def bootstrap(packages={}):
     # things I regularly depend on, like one-line installs from source repos.  Get pip instead.
     if len(packages) > 0:
         try:
-            import pip
-        except ImportError:
-            subprocess.check_call(shlex.split('easy_install  --user --script-dir . pip'))
+            subprocess.check_call(shlex.split('pip --version'))
+        except (OSError, subprocess.CalledProcessError):
+            subprocess.check_call(shlex.split('easy_install --user --script-dir . pip'))
 
     # Install packages you requested.  We probably don't have sudo privileges so we'll do this into user-writable
     # locations.  I do not advise installing packages your program will depend on _at run time_ into user locations,
