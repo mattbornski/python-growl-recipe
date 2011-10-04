@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # Only import default Python packages here.  You can't depend on any other packages being present at this point in the script execution.
+from __future__ import with_statement
 import os
 import os.path
 import shlex
