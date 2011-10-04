@@ -14,13 +14,16 @@ PROGRAM = 'Growl Demo'
 
 def bootstrap(packages={}):
     # Bootstrap an environment sufficient to install our application.
+    def reload():
+        os.execv(os.path.abspath(sys.argv[0]), sys.argv)
     
     # The default package manager which comes with most Python installations, easy_install, is not capable of many
     # things I regularly depend on, like one-line installs from source repos.  Get pip instead.
-    try:
-        import setuptools
-    except ImportError:
-        subprocess.check_call(shlex.split('easy_install setuptools --user'))
+    if len(packages) > 0:
+        try:
+            import pip
+        except ImportError:
+            subprocess.check_call(shlex.split('easy_install pip --user'))
 
     # Install packages you requested.  We probably don't have sudo privileges so we'll do this into user-writable
     # locations.  I do not advise installing packages your program will depend on _at run time_ into user locations,
@@ -35,7 +38,7 @@ def bootstrap(packages={}):
             subprocess.check_call(shlex.split('pip install ' + package_location + ' --user'))
             package_refresh_required = True
     if package_refresh_required:
-        os.execv(os.path.abspath(sys.argv[0]), sys.argv)
+        reload()
 
 def installed(settings={}):
     # Check that the application folder exists and that the launchd settingsuration is valid.
