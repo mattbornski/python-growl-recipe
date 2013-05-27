@@ -9,10 +9,7 @@ import shutil
 import subprocess
 import sys
 
-VENDOR = 'Bornski'
-PROGRAM = 'Growl Demo'
-
-def bootstrap(packages={}):
+def bootstrap(packages):
     # Bootstrap an environment sufficient to install our application.
     def reload():
         os.execv(os.path.abspath(sys.argv[0]), sys.argv)
@@ -51,7 +48,7 @@ def bootstrap(packages={}):
         except ImportError:
             try:
                 subprocess.check_call(shlex.split(pip_location + ' install ' + pip_options + package_location))
-            except CalledProcessError:
+            except subprocess.CalledProcessError:
                 if not using_fallback:
                     pip_options = '--install-option="--prefix ~" '
                     using_fallback = True
@@ -62,26 +59,31 @@ def bootstrap(packages={}):
     if package_refresh_required:
         reload()
 
-def installed(settings={}):
+
+
+def installed(settings):
     # Check that the application folder exists and that the launchd settingsuration is valid.
     return (subprocess.call(shlex.split('launchctl list ' + settings['namespace'] + '.' + settings['program'])) == 0)
 
-def uninstall(settings={}):
+def uninstall(settings):
     bootstrap({'shmac':'git+http://github.com/mattbornski/shmac.git#egg=shmac'})
     import shmac
     
     # Remove settings from launchd and remove the application folder.
     try:
         subprocess.call(shlex.split('launchctl unload ' + settings['plist_filename']))
-    except OSError:
+    except (KeyError, OSError):
         pass
-    shmac.sudo('rm ' + settings['plist_filename'])#, icon=settings['icon'], name=' '.join([settings['vendor'], settings['program']]))
+    try:
+        shmac.sudo('rm ' + settings['plist_filename'])#, icon=settings['icon'], name=' '.join([settings['vendor'], settings['program']]))
+    except KeyError:
+        pass
     try:
         shutil.rmtree(settings['application_folder'])
-    except OSError:
+    except (KeyError, OSError):
         pass
 
-def install(packages={}, settings={}):
+def install(settings):
     bootstrap({'shmac':'git+http://github.com/mattbornski/shmac.git#egg=shmac'})
     import shmac
     
@@ -90,18 +92,18 @@ def install(packages={}, settings={}):
     try:
         shutil.copytree(settings['run_folder'], settings['application_folder'], ignore=lambda src, names: [n for n in names if n in ['.git', '.gitignore']])
         os.chdir(settings['application_folder'])
-        if len(packages) > 0:
+        if len(settings.get('packages', {})) > 0:
             try:
                 import virtualenv
             except ImportError:
                 subprocess.check_call(shlex.split('pip install virtualenv --user'))
             subprocess.check_call(shlex.split('virtualenv --no-site-packages env'))
-            subprocess.check_call(shlex.split('pip install ' + ' '.join(packages.values()) + ' -E env'))
+            subprocess.check_call(shlex.split('source ./env/bin/activate && pip install ' + ' '.join(settings['packages'].values())))
             
         # Make a bash script for launchd to invoke.
         bash_filename = settings['program'] + '.sh'
         with open(bash_filename, 'w') as bash:
-            bash.write('#!/bin/bash\n' + ('source env/bin/activate\n' if len(packages) > 0 else '') + 'echo "import ' + settings['program'] + ' ; ' + settings['program'] + '.run()" | /usr/bin/env python -\n')
+            bash.write('#!/bin/bash\n' + ('source env/bin/activate\n' if len(settings.get('packages', {})) > 0 else '') + 'echo "import ' + settings['program'] + ' ; ' + settings['program'] + '.run()" | /usr/bin/env python -\n')
         os.chmod(bash_filename, 0755)
         
         # Create the launchd file for our application
@@ -158,10 +160,9 @@ def handle(**settings):
             uninstall(settings=settings)
         elif command == 'install':
             if not installed(settings=settings):
-                install(settings=settings, packages={
-                    # importable name : installable name
-                    'Growl':'py-Growl',
-                })
+                # Correct any partial installs
+                uninstall(settings=settings)
+                install(settings=settings)
         elif command == 'run':
             run(settings=settings)
         elif command == 'restart':
